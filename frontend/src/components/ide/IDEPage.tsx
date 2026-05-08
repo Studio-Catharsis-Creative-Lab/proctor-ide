@@ -14,14 +14,18 @@ const ACTIVITY_ID = "1";
 
 export default function IDEPage() {
   const { token, user } = useAuth();
+  const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({});
   const [content, setContent] = useState("Loading workspace...");
   const [timeline, setTimeline] = useState<Array<{ id: string; summary: string; timestamp: string }>>([]);
   const [filePath, setFilePath] = useState("main.py");
   const [stdin, setStdin] = useState("");
   const [consoleOutput, setConsoleOutput] = useState("Ready.");
   const [isRunning, setIsRunning] = useState(false);
-  const [comments, setComments] = useState<Array<{ user_id: string; line_number: number; text: string; timestamp: string }>>([]);
-  const [commentText, setCommentText] = useState("");
+  const [assistantMessages, setAssistantMessages] = useState<
+    Array<{ user_id: string; line_number: number; text: string; timestamp: string }>
+  >([]);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [bottomTab, setBottomTab] = useState<"terminal" | "timeline" | "assistant">("terminal");
   const [trackingLevel] = useState<"minimal" | "basic" | "moderate" | "comprehensive">("moderate");
 
   const { pushTrackingEvent } = useTracking({
@@ -41,6 +45,7 @@ export default function IDEPage() {
     }
     fetchWorkspace(WORKSPACE_ID, token).then((payload) => {
       const firstPath = Object.keys(payload.files)[0] ?? "main.py";
+      setWorkspaceFiles(payload.files);
       setFilePath(firstPath);
       setContent(payload.files[firstPath] ?? "");
     });
@@ -49,7 +54,9 @@ export default function IDEPage() {
 
   useEffect(() => {
     if (!token) return;
-    const ws = new WebSocket(`ws://localhost:8000/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
+    const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+    const wsBase = apiBase.replace(/^http/, "ws").replace(/\/api\/?$/, "");
+    const ws = new WebSocket(`${wsBase}/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data) as {
@@ -58,7 +65,7 @@ export default function IDEPage() {
           text: string;
           timestamp: string;
         };
-        setComments((prev) => [parsed, ...prev].slice(0, 30));
+        setAssistantMessages((prev) => [parsed, ...prev].slice(0, 30));
       } catch {
         // Ignore malformed payloads from dev server.
       }
@@ -69,6 +76,7 @@ export default function IDEPage() {
   async function saveNow() {
     if (!token) return;
     await saveWorkspaceFile(WORKSPACE_ID, filePath, content, token);
+    setWorkspaceFiles((prev) => ({ ...prev, [filePath]: content }));
     pushTrackingEvent({ event_type: "save", event_data: { path: filePath } });
     const payload = await fetchWorkspaceTimeline(WORKSPACE_ID, token);
     setTimeline(payload.timeline);
@@ -122,76 +130,144 @@ export default function IDEPage() {
   }
 
   async function sendComment() {
-    if (!token || !commentText.trim()) return;
-    const ws = new WebSocket(`ws://localhost:8000/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
+    if (!token || !assistantInput.trim()) return;
+    const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+    const wsBase = apiBase.replace(/^http/, "ws").replace(/\/api\/?$/, "");
+    const ws = new WebSocket(`${wsBase}/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
     const payload = {
       line_number: 1,
-      text: commentText.trim(),
+      text: assistantInput.trim(),
       timestamp: new Date().toISOString(),
     };
     ws.onopen = () => {
       ws.send(JSON.stringify(payload));
       ws.close();
-      setCommentText("");
+      setAssistantInput("");
     };
   }
 
   return (
-    <section className="two-col">
-      <div className="panel">
-        <h2>Editor</h2>
-        <button onClick={saveNow} disabled={saveDisabled}>
-          Save + Commit
+    <section className="vscode-shell">
+      <aside className="vscode-activitybar">
+        <button className="vscode-icon-btn active" title="Explorer">
+          E
         </button>
-        <button onClick={runNow} disabled={saveDisabled || isRunning}>
-          {isRunning ? "Running..." : "Run"}
+        <button className="vscode-icon-btn" title="Search">
+          S
         </button>
-        <Editor
-          height="60vh"
-          defaultLanguage="python"
-          value={content}
-          onChange={(value) => setContent(value ?? "")}
-          theme="vs-dark"
-        />
-      </div>
-      <div className="panel">
-        <h2>Timeline</h2>
-        <ul>
-          {timeline.map((item) => (
-            <li key={item.id}>
-              {item.id} - {item.summary}
+        <button className="vscode-icon-btn" title="Source Control">
+          G
+        </button>
+      </aside>
+
+      <aside className="vscode-sidebar">
+        <div className="vscode-sidebar-title">EXPLORER</div>
+        <div className="vscode-folder-label">WORKSPACE</div>
+        <ul className="vscode-file-list">
+          {Object.keys(workspaceFiles).map((path) => (
+            <li key={path}>
+              <button
+                className={`vscode-file-btn ${path === filePath ? "active" : ""}`}
+                onClick={() => {
+                  setFilePath(path);
+                  setContent(workspaceFiles[path] ?? "");
+                }}
+              >
+                {path}
+              </button>
             </li>
           ))}
         </ul>
-        <h3>Console</h3>
-        <label>
-          stdin
-          <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={3} style={{ width: "100%" }} />
-        </label>
-        <pre>{consoleOutput}</pre>
-        {filePath.toLowerCase().endsWith(".html") ? (
-          <>
-            <h3>UI Preview</h3>
-            <iframe title="preview" srcDoc={content} style={{ width: "100%", height: 260, border: "1px solid #1f2937" }} />
-          </>
-        ) : null}
-        <h3>Comments</h3>
-        <textarea
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          rows={3}
-          placeholder="Leave a line-level comment..."
-          style={{ width: "100%" }}
-        />
-        <button onClick={sendComment}>Send Comment</button>
-        <ul>
-          {comments.map((comment, index) => (
-            <li key={`${comment.timestamp}-${index}`}>
-              [{comment.line_number}] {comment.user_id}: {comment.text}
-            </li>
-          ))}
-        </ul>
+      </aside>
+
+      <div className="vscode-main">
+        <div className="vscode-editor-toolbar">
+          <div className="vscode-tab active">{filePath}</div>
+          <div className="vscode-toolbar-actions">
+            <button onClick={saveNow} disabled={saveDisabled}>
+              Save
+            </button>
+            <button onClick={runNow} disabled={saveDisabled || isRunning}>
+              {isRunning ? "Running..." : "Run"}
+            </button>
+          </div>
+        </div>
+        <div className="vscode-editor-pane">
+          <Editor
+            height="100%"
+            defaultLanguage="python"
+            value={content}
+            onChange={(value) => setContent(value ?? "")}
+            theme="vs-dark"
+            options={{
+              fontSize: 14,
+              minimap: { enabled: true },
+              lineNumbers: "on",
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+            }}
+          />
+        </div>
+        <div className="vscode-bottom-tabs">
+          <button className={bottomTab === "terminal" ? "active" : ""} onClick={() => setBottomTab("terminal")}>
+            TERMINAL
+          </button>
+          <button className={bottomTab === "timeline" ? "active" : ""} onClick={() => setBottomTab("timeline")}>
+            TIMELINE
+          </button>
+          <button className={bottomTab === "assistant" ? "active" : ""} onClick={() => setBottomTab("assistant")}>
+            ASSISTANT
+          </button>
+        </div>
+        <div className="vscode-bottom-pane">
+          {bottomTab === "terminal" ? (
+            <>
+              <label>
+                stdin
+                <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={2} />
+              </label>
+              <pre>{consoleOutput}</pre>
+              {filePath.toLowerCase().endsWith(".html") ? (
+                <iframe title="preview" srcDoc={content} style={{ width: "100%", height: 240, border: "1px solid #1f2937" }} />
+              ) : null}
+            </>
+          ) : null}
+          {bottomTab === "timeline" ? (
+            <ul>
+              {timeline.map((item) => (
+                <li key={item.id}>
+                  {item.id} - {item.summary}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {bottomTab === "assistant" ? (
+            <>
+              <p>Assistant shares the same realtime channel as comments for the current work context.</p>
+              <textarea
+                value={assistantInput}
+                onChange={(e) => setAssistantInput(e.target.value)}
+                rows={3}
+                placeholder="Ask assistant or leave context notes..."
+              />
+              <button onClick={sendComment}>Send to Assistant</button>
+              <ul>
+                {assistantMessages.map((comment, index) => (
+                  <li key={`${comment.timestamp}-${index}`}>
+                    [{comment.line_number}] {comment.user_id}: {comment.text}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
       </div>
+
+      <footer className="vscode-statusbar">
+        <span>ProctorIDE</span>
+        <span>{user?.email ?? "dev user"}</span>
+      </footer>
     </section>
   );
 }
