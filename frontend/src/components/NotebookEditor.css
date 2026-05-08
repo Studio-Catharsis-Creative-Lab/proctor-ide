@@ -1,0 +1,240 @@
+.notebook-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-base);
+  overflow: hidden;
+}
+
+/* Toolbar */
+.notebook-toolbar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--spacing-md);
+  gap: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.notebook-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.notebook-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  height: 28px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-button);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+.notebook-toolbar-btn:hover {
+  background-color: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.notebook-toolbar-btn.run-all {
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+.notebook-toolbar-btn.run-all:hover {
+  background-color: #1f6c3a;
+  border-color: #1f6c3a;
+}
+
+/* Notebook Container */
+.notebook-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-xl);
+  background-color: var(--color-base);
+}
+
+/* Challenge Section */
+.challenge-section {
+  margin-bottom: var(--spacing-3xl);
+}
+
+.challenge-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: var(--spacing-lg);
+}
+
+.challenge-description {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.challenge-description code {
+  background-color: var(--color-button);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-accent-light);
+}
+
+/* Cells Section */
+.cells-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.cells-section-title {
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.5px;
+  margin-top: var(--spacing-2xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-3xl) var(--spacing-2xl);
+  color: var(--color-text-muted);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+.empty-state-text {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  background-color: var(--color-accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.empty-state-btn:hover {
+  background-color: var(--color-accent-hover);
+}
+
+/* Add Cell Button */
+.add-cell-button-container {
+  display: flex;
+  justify-content: center;
+  margin: var(--spacing-2xl) 0;
+}
+
+.add-cell-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  background-color: var(--color-button);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+.add-cell-button:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
+}
+
+/* Loading State */
+.notebook-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-md);
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .notebook-toolbar {
+    height: 32px;
+    padding: 0 var(--spacing-sm);
+  }
+
+  .notebook-toolbar-btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    height: 24px;
+    font-size: var(--font-size-xs);
+  }
+
+  .notebook-container {
+    padding: var(--spacing-lg);
+  }
+
+  .challenge-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .challenge-description {
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (max-width: 768px) {
+  .notebook-container {
+    padding: var(--spacing-md);
+  }
+
+  .cells-container {
+    gap: var(--spacing-md);
+  }
+
+  .challenge-section {
+    margin-bottom: var(--spacing-2xl);
+  }
+}

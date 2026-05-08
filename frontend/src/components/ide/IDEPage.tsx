@@ -1,4 +1,3 @@
-import Editor from "@monaco-editor/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   executeCode,
@@ -8,6 +7,12 @@ import {
 } from "../../services/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useTracking } from "./useTracking";
+import { DockLayout } from "../layout/DockLayout";
+import { MenuBar } from "../MenuBar";
+import { LeftSidebar } from "../LeftSidebar";
+import { NotebookEditor } from "../NotebookEditor";
+import { RightSidebar, Comment } from "../RightSidebar";
+import { StatusBar } from "../StatusBar";
 
 const WORKSPACE_ID = "demo-workspace";
 const ACTIVITY_ID = "1";
@@ -23,6 +28,16 @@ function inferEditorLanguage(path: string) {
   if (lower.endsWith(".css")) return "css";
   if (lower.endsWith(".json")) return "json";
   return "plaintext";
+}
+
+function inferLanguageId(path: string) {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".py")) return 71;
+  if (lower.endsWith(".js")) return 63;
+  if (lower.endsWith(".ts")) return 74;
+  if (lower.endsWith(".java")) return 62;
+  if (lower.endsWith(".cpp")) return 54;
+  return 71;
 }
 
 export default function IDEPage() {
@@ -44,9 +59,7 @@ export default function IDEPage() {
     Array<{ user_id: string; line_number: number; text: string; timestamp: string }>
   >([]);
   const [assistantInput, setAssistantInput] = useState("");
-  const [bottomTab, setBottomTab] = useState<"terminal" | "timeline" | "assistant">("terminal");
   const [trackingLevel] = useState<"minimal" | "basic" | "moderate" | "comprehensive">("moderate");
-  const editorRef = useRef<Parameters<NonNullable<React.ComponentProps<typeof Editor>["onMount"]>>[0] | null>(null);
 
   const { pushTrackingEvent } = useTracking({
     token,
@@ -102,19 +115,8 @@ export default function IDEPage() {
     setTimeline(payload.timeline);
   }
 
-  function inferLanguageId(path: string) {
-    const lower = path.toLowerCase();
-    if (lower.endsWith(".py")) return 71;
-    if (lower.endsWith(".js")) return 63;
-    if (lower.endsWith(".ts")) return 74;
-    if (lower.endsWith(".java")) return 62;
-    if (lower.endsWith(".cpp")) return 54;
-    return 71;
-  }
-
   async function runNow() {
     if (!token) return;
-    // HTML/CSS/JS files are rendered in preview pane; no Judge0 run call needed.
     if (filePath.toLowerCase().endsWith(".html")) {
       setTerminalState({
         status: "Preview",
@@ -157,21 +159,11 @@ export default function IDEPage() {
     }
   }
 
-  async function formatNow() {
-    const editor = editorRef.current;
-    if (!editor) return;
-    await editor.getAction("editor.action.formatDocument")?.run();
-  }
-
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         void saveNow();
-      }
-      if ((event.shiftKey && event.altKey && event.key.toLowerCase() === "f") || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f" && event.shiftKey)) {
-        event.preventDefault();
-        void formatNow();
       }
     };
     window.addEventListener("keydown", handler);
@@ -195,169 +187,53 @@ export default function IDEPage() {
     };
   }
 
+  const commentList: Comment[] = assistantMessages.map((msg) => ({
+    id: msg.timestamp,
+    author: msg.user_id,
+    role: "instructor" as const,
+    text: msg.text,
+    timestamp: new Date(msg.timestamp),
+  }));
+
   return (
-    <section className="vscode-shell">
-      <aside className="vscode-activitybar">
-        <button className="vscode-icon-btn active" title="Explorer">
-          E
-        </button>
-        <button className="vscode-icon-btn" title="Search">
-          S
-        </button>
-        <button className="vscode-icon-btn" title="Source Control">
-          G
-        </button>
-      </aside>
-
-      <aside className="vscode-sidebar">
-        <div className="vscode-sidebar-title">EXPLORER</div>
-        <div className="vscode-folder-label">WORKSPACE</div>
-        <ul className="vscode-file-list">
-          {Object.keys(workspaceFiles).map((path) => (
-            <li key={path}>
-              <button
-                className={`vscode-file-btn ${path === filePath ? "active" : ""}`}
-                onClick={() => {
-                  setFilePath(path);
-                  setContent(workspaceFiles[path] ?? "");
-                }}
-              >
-                {path}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      <div className="vscode-main">
-        <div className="vscode-editor-toolbar">
-          <div className="vscode-tab active">{filePath}</div>
-          <div className="vscode-toolbar-actions">
-            <button onClick={saveNow} disabled={saveDisabled}>
-              Save
-            </button>
-            <button onClick={formatNow} disabled={saveDisabled}>
-              Format
-            </button>
-            <button onClick={runNow} disabled={saveDisabled || isRunning}>
-              {isRunning ? "Running..." : "Run"}
-            </button>
-          </div>
-        </div>
-        <div className="vscode-editor-pane">
-          <Editor
-            height="100%"
-            defaultLanguage={inferEditorLanguage(filePath)}
-            language={inferEditorLanguage(filePath)}
-            value={content}
-            onChange={(value) => setContent(value ?? "")}
-            onMount={(editor) => {
-              editorRef.current = editor;
-            }}
-            theme="vs-dark"
-            options={{
-              fontSize: 14,
-              minimap: { enabled: true },
-              lineNumbers: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              tabSize: 2,
-            }}
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <MenuBar onSave={saveNow} onNew={() => {}} onOpen={() => {}} />
+      <DockLayout
+        left={<LeftSidebar onFileSelect={(file) => {}} selectedFileId={filePath} />}
+        center={
+          <NotebookEditor
+            title="Proctor IDE"
+            challengeDescription="Write Python code in the cell below and click Run to execute."
+            initialCells={[
+              {
+                id: "code-1",
+                type: "code",
+                content,
+                language: "python",
+                status: isRunning ? "running" : terminalState.stderr ? "error" : "success",
+                output: terminalState.stdout || terminalState.stderr || "",
+                onUpdate: setContent,
+                onRun: runNow,
+              },
+            ]}
           />
-        </div>
-        <div className="vscode-bottom-tabs">
-          <button className={bottomTab === "terminal" ? "active" : ""} onClick={() => setBottomTab("terminal")}>
-            TERMINAL
-          </button>
-          <button className={bottomTab === "timeline" ? "active" : ""} onClick={() => setBottomTab("timeline")}>
-            TIMELINE
-          </button>
-          <button className={bottomTab === "assistant" ? "active" : ""} onClick={() => setBottomTab("assistant")}>
-            ASSISTANT
-          </button>
-        </div>
-        <div className="vscode-bottom-pane">
-          {bottomTab === "terminal" ? (
-            <>
-              <div className="terminal-shell">
-                <div className="terminal-header">
-                  <span>$ proctor-run</span>
-                  <span className="terminal-status">{terminalState.status}</span>
-                </div>
-                <label className="terminal-stdin">
-                  <span>$ stdin:</span>
-                  <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={2} />
-                </label>
-                <div className="terminal-output">
-                  {terminalState.stdout ? (
-                    <div className="terminal-block">
-                      <div className="terminal-label">stdout</div>
-                      <pre>{terminalState.stdout}</pre>
-                    </div>
-                  ) : null}
-                  {terminalState.stderr ? (
-                    <div className="terminal-block terminal-block-error">
-                      <div className="terminal-label">stderr</div>
-                      <pre>{terminalState.stderr}</pre>
-                    </div>
-                  ) : null}
-                  {terminalState.compileOutput ? (
-                    <div className="terminal-block terminal-block-warn">
-                      <div className="terminal-label">compile output</div>
-                      <pre>{terminalState.compileOutput}</pre>
-                    </div>
-                  ) : null}
-                  {terminalState.message ? (
-                    <div className="terminal-block">
-                      <div className="terminal-label">message</div>
-                      <pre>{terminalState.message}</pre>
-                    </div>
-                  ) : null}
-                  {!terminalState.stdout && !terminalState.stderr && !terminalState.compileOutput && !terminalState.message ? (
-                    <div className="terminal-empty">No terminal output yet. Run code to populate console.</div>
-                  ) : null}
-                </div>
-              </div>
-              {filePath.toLowerCase().endsWith(".html") ? (
-                <iframe title="preview" srcDoc={content} style={{ width: "100%", height: 240, border: "1px solid #1f2937" }} />
-              ) : null}
-            </>
-          ) : null}
-          {bottomTab === "timeline" ? (
-            <ul>
-              {timeline.map((item) => (
-                <li key={item.id}>
-                  {item.id} - {item.summary}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {bottomTab === "assistant" ? (
-            <>
-              <p>Assistant shares the same realtime channel as comments for the current work context.</p>
-              <textarea
-                value={assistantInput}
-                onChange={(e) => setAssistantInput(e.target.value)}
-                rows={3}
-                placeholder="Ask assistant or leave context notes..."
-              />
-              <button onClick={sendComment}>Send to Assistant</button>
-              <ul>
-                {assistantMessages.map((comment, index) => (
-                  <li key={`${comment.timestamp}-${index}`}>
-                    [{comment.line_number}] {comment.user_id}: {comment.text}
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      <footer className="vscode-statusbar">
-        <span>ProctorIDE</span>
-        <span>{user?.email ?? "dev user"}</span>
-      </footer>
-    </section>
+        }
+        right={
+          <RightSidebar
+            comments={commentList}
+            userRole="student"
+            onSendComment={sendComment}
+            readonly={!token}
+          />
+        }
+      />
+      <StatusBar
+        status={isRunning ? "running" : terminalState.stderr ? "error" : "ready"}
+        message={terminalState.status}
+        fileName={filePath}
+        language={inferEditorLanguage(filePath)}
+        lineCount={content.split("\n").length}
+      />
+    </div>
   );
 }
