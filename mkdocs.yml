@@ -1,0 +1,113 @@
+# ProctorIDE documentation site — build: pip install -r requirements-docs.txt && mkdocs serve
+site_name: ProctorIDE Documentation
+site_description: Academic coding assessment platform — guides, workflows, transparency, and compliance
+site_url: https://proctor-ide.local/
+repo_url: https://github.com/studio-catharsis/proctor-ide
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Account & access: getting-started/account-access.md
+      - Environments: getting-started/environments.md
+      - Glossary: getting-started/glossary.md
+  - Workflows:
+      - Overview: workflows/index.md
+      - Instructor:
+          - workflows/instructor/index.md
+          - Activity lifecycle: workflows/instructor/activity-lifecycle.md
+          - Assignments & projects: workflows/instructor/assignments-projects.md
+          - Challenges: workflows/instructor/challenges.md
+          - Quizzes: workflows/instructor/quizzes.md
+          - Tests & exams: workflows/instructor/tests-exams.md
+          - Enrollment: workflows/instructor/enrollment.md
+          - Templates: workflows/instructor/templates.md
+          - Monitoring & review: workflows/instructor/monitoring.md
+      - Student:
+          - workflows/student/index.md
+          - Dashboard: workflows/student/dashboard.md
+          - Start an activity: workflows/student/starting-activity.md
+          - IDE, run, submit: workflows/student/ide-run-submit.md
+          - Timeline: workflows/student/timeline.md
+          - Comments: workflows/student/comments.md
+          - Troubleshooting: workflows/student/troubleshooting.md
+      - Admin:
+          - workflows/admin/index.md
+          - Deployment: workflows/admin/deployment.md
+  - How-to:
+      - how-to/index.md
+      - Instructors: how-to/instructors.md
+      - Students: how-to/students.md
+      - Admins: how-to/admins.md
+  - Transparency:
+      - transparency/index.md
+      - Tracking by activity: transparency/tracking-by-activity-type.md
+      - Data collected: transparency/data-collected.md
+      - Data not collected: transparency/data-not-collected.md
+      - Student visibility: transparency/visibility-students.md
+      - Instructor visibility: transparency/visibility-instructors.md
+      - AI assistant: transparency/ai-assistant.md
+  - Procedures:
+      - procedures/index.md
+      - Incident response: procedures/incident-response.md
+      - Access reviews: procedures/access-reviews.md
+      - Data requests: procedures/data-requests.md
+      - Retention: procedures/retention.md
+      - Vendors: procedures/vendors-subprocessors.md
+      - Testing policy: procedures/testing-policy.md
+  - Compliance:
+      - compliance/index.md
+      - Education records (FERPA-oriented): compliance/education-records.md
+      - Privacy overview: compliance/privacy-overview.md
+      - Security controls: compliance/security-controls.md
+      - Audit expectations: compliance/audit-expectations.md
+      - Accessibility: compliance/accessibility.md
+      - Disclaimer: compliance/disclaimer.md
+  - Reference:
+      - reference/index.md
+      - Activity types matrix: reference/activity-types-matrix.md
+      - Roles & permissions: reference/roles-permissions.md
+      - API overview: reference/api-overview.md
+      - FAQ: reference/faq.md
+  - Releases:
+      - releases/changelog.md
+      - releases/migration-notes.md
+
+plugins:
+  - search
+
+extra:
+  generator: false
+
+docs_dir: docs

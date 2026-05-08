@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JUDGE0_URL: http://judge0:2358
+      FIREBASE_CREDENTIALS_PATH: /secrets/firebase-admin.json
+    depends_on:
+      - judge0
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: proctoride
+      POSTGRES_USER: proctoride
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-proctoride}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+  judge0:
+    image: judge0/judge0:latest
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+
+volumes:
+  postgres_prod_data:
