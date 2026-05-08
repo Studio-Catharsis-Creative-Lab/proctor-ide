@@ -1,5 +1,5 @@
 import Editor from "@monaco-editor/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   executeCode,
   fetchWorkspace,
@@ -12,6 +12,19 @@ import { useTracking } from "./useTracking";
 const WORKSPACE_ID = "demo-workspace";
 const ACTIVITY_ID = "1";
 
+function inferEditorLanguage(path: string) {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".py")) return "python";
+  if (lower.endsWith(".js")) return "javascript";
+  if (lower.endsWith(".ts")) return "typescript";
+  if (lower.endsWith(".java")) return "java";
+  if (lower.endsWith(".cpp") || lower.endsWith(".cc") || lower.endsWith(".cxx")) return "cpp";
+  if (lower.endsWith(".html")) return "html";
+  if (lower.endsWith(".css")) return "css";
+  if (lower.endsWith(".json")) return "json";
+  return "plaintext";
+}
+
 export default function IDEPage() {
   const { token, user } = useAuth();
   const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({});
@@ -19,7 +32,13 @@ export default function IDEPage() {
   const [timeline, setTimeline] = useState<Array<{ id: string; summary: string; timestamp: string }>>([]);
   const [filePath, setFilePath] = useState("main.py");
   const [stdin, setStdin] = useState("");
-  const [consoleOutput, setConsoleOutput] = useState("Ready.");
+  const [terminalState, setTerminalState] = useState({
+    status: "Ready",
+    stdout: "",
+    stderr: "",
+    compileOutput: "",
+    message: "",
+  });
   const [isRunning, setIsRunning] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState<
     Array<{ user_id: string; line_number: number; text: string; timestamp: string }>
@@ -27,6 +46,7 @@ export default function IDEPage() {
   const [assistantInput, setAssistantInput] = useState("");
   const [bottomTab, setBottomTab] = useState<"terminal" | "timeline" | "assistant">("terminal");
   const [trackingLevel] = useState<"minimal" | "basic" | "moderate" | "comprehensive">("moderate");
+  const editorRef = useRef<Parameters<NonNullable<React.ComponentProps<typeof Editor>["onMount"]>>[0] | null>(null);
 
   const { pushTrackingEvent } = useTracking({
     token,
@@ -96,7 +116,13 @@ export default function IDEPage() {
     if (!token) return;
     // HTML/CSS/JS files are rendered in preview pane; no Judge0 run call needed.
     if (filePath.toLowerCase().endsWith(".html")) {
-      setConsoleOutput("HTML preview updated.");
+      setTerminalState({
+        status: "Preview",
+        stdout: "HTML preview updated.",
+        stderr: "",
+        compileOutput: "",
+        message: "",
+      });
       return;
     }
     setIsRunning(true);
@@ -111,23 +137,46 @@ export default function IDEPage() {
         event_type: "run",
         event_data: { path: filePath, language: inferLanguageId(filePath) },
       });
-      setConsoleOutput(
-        [
-          result.status ? `status: ${result.status.description}` : null,
-          result.stdout ? `stdout:\n${result.stdout}` : null,
-          result.stderr ? `stderr:\n${result.stderr}` : null,
-          result.compile_output ? `compile_output:\n${result.compile_output}` : null,
-          result.message ? `message:\n${result.message}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n\n") || "No output.",
-      );
+      setTerminalState({
+        status: result.status?.description ?? "Completed",
+        stdout: result.stdout ?? "",
+        stderr: result.stderr ?? "",
+        compileOutput: result.compile_output ?? "",
+        message: result.message ?? "",
+      });
     } catch (err) {
-      setConsoleOutput(`Run failed: ${(err as Error).message}`);
+      setTerminalState({
+        status: "Failed",
+        stdout: "",
+        stderr: `Run failed: ${(err as Error).message}`,
+        compileOutput: "",
+        message: "",
+      });
     } finally {
       setIsRunning(false);
     }
   }
+
+  async function formatNow() {
+    const editor = editorRef.current;
+    if (!editor) return;
+    await editor.getAction("editor.action.formatDocument")?.run();
+  }
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveNow();
+      }
+      if ((event.shiftKey && event.altKey && event.key.toLowerCase() === "f") || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f" && event.shiftKey)) {
+        event.preventDefault();
+        void formatNow();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  });
 
   async function sendComment() {
     if (!token || !assistantInput.trim()) return;
@@ -187,6 +236,9 @@ export default function IDEPage() {
             <button onClick={saveNow} disabled={saveDisabled}>
               Save
             </button>
+            <button onClick={formatNow} disabled={saveDisabled}>
+              Format
+            </button>
             <button onClick={runNow} disabled={saveDisabled || isRunning}>
               {isRunning ? "Running..." : "Run"}
             </button>
@@ -195,9 +247,13 @@ export default function IDEPage() {
         <div className="vscode-editor-pane">
           <Editor
             height="100%"
-            defaultLanguage="python"
+            defaultLanguage={inferEditorLanguage(filePath)}
+            language={inferEditorLanguage(filePath)}
             value={content}
             onChange={(value) => setContent(value ?? "")}
+            onMount={(editor) => {
+              editorRef.current = editor;
+            }}
             theme="vs-dark"
             options={{
               fontSize: 14,
@@ -223,11 +279,45 @@ export default function IDEPage() {
         <div className="vscode-bottom-pane">
           {bottomTab === "terminal" ? (
             <>
-              <label>
-                stdin
-                <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={2} />
-              </label>
-              <pre>{consoleOutput}</pre>
+              <div className="terminal-shell">
+                <div className="terminal-header">
+                  <span>$ proctor-run</span>
+                  <span className="terminal-status">{terminalState.status}</span>
+                </div>
+                <label className="terminal-stdin">
+                  <span>$ stdin:</span>
+                  <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={2} />
+                </label>
+                <div className="terminal-output">
+                  {terminalState.stdout ? (
+                    <div className="terminal-block">
+                      <div className="terminal-label">stdout</div>
+                      <pre>{terminalState.stdout}</pre>
+                    </div>
+                  ) : null}
+                  {terminalState.stderr ? (
+                    <div className="terminal-block terminal-block-error">
+                      <div className="terminal-label">stderr</div>
+                      <pre>{terminalState.stderr}</pre>
+                    </div>
+                  ) : null}
+                  {terminalState.compileOutput ? (
+                    <div className="terminal-block terminal-block-warn">
+                      <div className="terminal-label">compile output</div>
+                      <pre>{terminalState.compileOutput}</pre>
+                    </div>
+                  ) : null}
+                  {terminalState.message ? (
+                    <div className="terminal-block">
+                      <div className="terminal-label">message</div>
+                      <pre>{terminalState.message}</pre>
+                    </div>
+                  ) : null}
+                  {!terminalState.stdout && !terminalState.stderr && !terminalState.compileOutput && !terminalState.message ? (
+                    <div className="terminal-empty">No terminal output yet. Run code to populate console.</div>
+                  ) : null}
+                </div>
+              </div>
               {filePath.toLowerCase().endsWith(".html") ? (
                 <iframe title="preview" srcDoc={content} style={{ width: "100%", height: 240, border: "1px solid #1f2937" }} />
               ) : null}
