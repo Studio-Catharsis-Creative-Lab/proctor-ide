@@ -29,17 +29,17 @@ async def get_current_user(authorization: Annotated[str | None, Header()] = None
 
 
 def verify_token(token: str) -> dict[str, Any]:
+    # Local dev tokens always work, even when Firebase Admin is configured.
+    if token.startswith("dev-"):
+        role = token.removeprefix("dev-") or "student"
+        return {"uid": f"dev-{role}", "email": f"{role}@local.dev", "role": role}
+
     _init_firebase()
     try:
         if _initialized:
             decoded = auth.verify_id_token(token)
             role = decoded.get("role") or decoded.get("claims", {}).get("role") or "student"
             return {"uid": decoded["uid"], "email": decoded.get("email"), "role": role}
-
-        # Local development fallback when Firebase credentials are not configured.
-        if token.startswith("dev-"):
-            role = token.removeprefix("dev-") or "student"
-            return {"uid": f"dev-{role}", "email": f"{role}@local.dev", "role": role}
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}") from exc
 

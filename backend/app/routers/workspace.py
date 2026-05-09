@@ -72,7 +72,7 @@ def _resolve_workspace_target(workspace: Path, relative_path: str) -> Path:
 async def list_files(
     workspace_id: str,
     user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, dict[str, str]]:
+) -> dict[str, Any]:
     path = _workspace_path(workspace_id, user["uid"])
     _ensure_repo(path)
     files: dict[str, str] = {}
@@ -105,7 +105,7 @@ async def update_file(
 async def log(
     workspace_id: str,
     user: dict[str, Any] = Depends(get_current_user),
-) -> dict[str, list[dict[str, str]]]:
+) -> dict[str, Any]:
     workspace = _workspace_path(workspace_id, user["uid"])
     repo = _ensure_repo(workspace)
     timeline = [

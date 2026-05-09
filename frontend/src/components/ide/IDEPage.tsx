@@ -18,6 +18,11 @@ import { StatusBar } from "../StatusBar";
 const WORKSPACE_ID = "demo-workspace";
 const ACTIVITY_ID = "1";
 
+function commentsWebSocketUrl(apiBase: string, activityId: string, token: string): string {
+  const wsBase = apiBase.replace(/^http/, "ws").replace(/\/+$/, "");
+  return `${wsBase}/ws/comments/${activityId}?token=${encodeURIComponent(token)}`;
+}
+
 function inferEditorLanguage(path: string) {
   const lower = path.toLowerCase();
   if (lower.endsWith(".py")) return "python";
@@ -95,8 +100,7 @@ export default function IDEPage() {
   useEffect(() => {
     if (!token) return;
     const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
-    const wsBase = apiBase.replace(/^http/, "ws").replace(/\/api\/?$/, "");
-    const ws = new WebSocket(`${wsBase}/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
+    const ws = new WebSocket(commentsWebSocketUrl(apiBase, ACTIVITY_ID, token));
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data) as {
@@ -190,8 +194,7 @@ export default function IDEPage() {
   async function sendComment() {
     if (!token || !assistantInput.trim()) return;
     const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
-    const wsBase = apiBase.replace(/^http/, "ws").replace(/\/api\/?$/, "");
-    const ws = new WebSocket(`${wsBase}/ws/comments/${ACTIVITY_ID}?token=${encodeURIComponent(token)}`);
+    const ws = new WebSocket(commentsWebSocketUrl(apiBase, ACTIVITY_ID, token));
     const payload = {
       line_number: 1,
       text: assistantInput.trim(),
