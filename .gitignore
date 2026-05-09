@@ -21,6 +21,9 @@ venv/
 backend/venv/
 frontend/venv/
 
+# Runtime student workspaces (GitPython repos; do not commit)
+data/workspaces/
+
 # Local databases and logs
 *.db
 *.sqlite

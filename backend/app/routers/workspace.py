@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -9,8 +10,11 @@ from app.utils.firebase_auth import get_current_user
 
 router = APIRouter(tags=["workspace"])
 
-ROOT = Path(__file__).resolve().parents[3] / "data" / "workspaces"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+ROOT = REPO_ROOT / "data" / "workspaces"
 ROOT.mkdir(parents=True, exist_ok=True)
+# Course notebooks shipped in-repo; copied into each user workspace once (live edits stay under data/workspaces).
+COURSE_PYTHON_SEED = REPO_ROOT / "workspace" / "classes" / "python"
 
 
 class FilePayload(BaseModel):
@@ -23,14 +27,33 @@ def _workspace_path(workspace_id: str, uid: str) -> Path:
     return path
 
 
+def _seed_classes_python(workspace: Path) -> None:
+    """Copy bundled course notebooks into workspace/classes/python if not present yet."""
+    if not COURSE_PYTHON_SEED.is_dir():
+        return
+    dest = workspace / "classes" / "python"
+    if dest.exists() and any(dest.iterdir()):
+        return
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(COURSE_PYTHON_SEED, dest)
+
+
 def _ensure_repo(path: Path) -> Repo:
     if (path / ".git").exists():
-        return Repo(path)
-    repo = Repo.init(path)
-    starter = path / "main.py"
-    starter.write_text("print('hello from ProctorIDE')\n", encoding="utf-8")
-    repo.git.add(A=True)
-    repo.index.commit("Initial starter workspace")
+        repo = Repo(path)
+    else:
+        repo = Repo.init(path)
+        starter = path / "main.py"
+        starter.write_text("print('hello from ProctorIDE')\n", encoding="utf-8")
+        repo.git.add(A=True)
+        repo.index.commit("Initial starter workspace")
+
+    _seed_classes_python(path)
+    if repo.is_dirty(untracked_files=True):
+        repo.git.add(A=True)
+        repo.index.commit("Seed classes/python course notebooks")
     return repo
 
 

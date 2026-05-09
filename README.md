@@ -16,6 +16,8 @@ ProctorIDE is an academic coding assessment platform with a role-based dashboard
    - `npm install`
    - `npm run dev`
 
+Course notebooks ship under **`workspace/classes/python/`**. On first workspace use, the API copies that tree into **`data/workspaces/<uid>-<workspace_id>/classes/python/`** so edits are persisted in the student workspace.
+
 ## MVP Modules
 
 - Invitation-based access and role model
