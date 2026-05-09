@@ -1,4 +1,3 @@
-import React from "react";
 import "./MenuBar.css";
 
 interface MenuBarProps {

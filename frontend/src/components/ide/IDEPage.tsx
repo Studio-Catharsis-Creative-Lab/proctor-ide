@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   executeCode,
   fetchWorkspace,
@@ -7,11 +7,11 @@ import {
 } from "../../services/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useTracking } from "./useTracking";
-import { DockLayout } from "../layout/DockLayout";
+import { DockLayout } from "../../features/layout/DockLayout";
 import { MenuBar } from "../MenuBar";
 import { LeftSidebar } from "../LeftSidebar";
 import { NotebookEditor } from "../NotebookEditor";
-import { RightSidebar, Comment } from "../RightSidebar";
+import { RightSidebar, type Comment } from "../RightSidebar";
 import { StatusBar } from "../StatusBar";
 
 const WORKSPACE_ID = "demo-workspace";
@@ -42,11 +42,11 @@ function inferLanguageId(path: string) {
 
 export default function IDEPage() {
   const { token, user } = useAuth();
-  const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({});
+  const [, setWorkspaceFiles] = useState<Record<string, string>>({});
   const [content, setContent] = useState("Loading workspace...");
-  const [timeline, setTimeline] = useState<Array<{ id: string; summary: string; timestamp: string }>>([]);
+  const [, setTimeline] = useState<Array<{ id: string; summary: string; timestamp: string }>>([]);
   const [filePath, setFilePath] = useState("main.py");
-  const [stdin, setStdin] = useState("");
+  const [stdin] = useState("");
   const [terminalState, setTerminalState] = useState({
     status: "Ready",
     stdout: "",
@@ -69,8 +69,6 @@ export default function IDEPage() {
     currentFilePath: filePath,
     currentContent: content,
   });
-
-  const saveDisabled = useMemo(() => !token, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -199,7 +197,7 @@ export default function IDEPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <MenuBar onSave={saveNow} onNew={() => {}} onOpen={() => {}} />
       <DockLayout
-        left={<LeftSidebar onFileSelect={(file) => {}} selectedFileId={filePath} />}
+        left={<LeftSidebar onFileSelect={() => {}} selectedFileId={filePath} />}
         center={
           <NotebookEditor
             title="Proctor IDE"

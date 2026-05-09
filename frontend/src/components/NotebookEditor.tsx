@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from "react";
-import { NotebookCell, NotebookCellProps } from "./NotebookCell";
+import { useState, useCallback } from "react";
+import { NotebookCell } from "./NotebookCell";
+import type { NotebookCellProps } from "./NotebookCell";
 import "./NotebookEditor.css";
 
 export interface NotebookEditorProps {
@@ -132,7 +133,7 @@ export function NotebookEditor({
           </div>
         ) : (
           <div className="cells-container">
-            {cells.map((cell, index) => (
+            {cells.map((cell) => (
               <NotebookCell
                 key={cell.id}
                 {...cell}
