@@ -42,3 +42,8 @@ steps:
         "managed",
         "--allow-unauthenticated",
       ]
+
+# Required when Cloud Build trigger uses a custom service_account:
+# logs must target Cloud Logging, a logs bucket, or REGIONAL_USER_OWNED_BUCKET behavior.
+options:
+  logging: CLOUD_LOGGING_ONLY
