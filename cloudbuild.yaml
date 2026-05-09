@@ -1,15 +1,17 @@
+# Use BUILD_ID for image tags: it is always defined (including `gcloud builds submit`
+# from a local directory). COMMIT_SHA is only set for repo-triggered builds.
 steps:
   - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$COMMIT_SHA", "./frontend"]
+    args: ["build", "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$BUILD_ID", "./frontend"]
 
   - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$COMMIT_SHA", "./backend"]
+    args: ["build", "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$BUILD_ID", "./backend"]
 
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$COMMIT_SHA"]
+    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$BUILD_ID"]
 
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$COMMIT_SHA"]
+    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$BUILD_ID"]
 
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
@@ -19,7 +21,7 @@ steps:
         "deploy",
         "proctoride-backend",
         "--image",
-        "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$COMMIT_SHA",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/backend:$BUILD_ID",
         "--region",
         "us-central1",
         "--platform",
@@ -35,7 +37,7 @@ steps:
         "deploy",
         "proctoride-frontend",
         "--image",
-        "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$COMMIT_SHA",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/proctoride/frontend:$BUILD_ID",
         "--region",
         "us-central1",
         "--platform",
