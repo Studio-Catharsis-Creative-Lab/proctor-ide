@@ -78,7 +78,9 @@ async def list_files(
     files: dict[str, str] = {}
     for file in path.rglob("*"):
         if file.is_file() and ".git" not in file.parts:
-            files[str(file.relative_to(path))] = file.read_text(encoding="utf-8")
+            # Always POSIX-style keys so the frontend can split on "/".
+            rel = file.relative_to(path).as_posix()
+            files[rel] = file.read_text(encoding="utf-8")
     return {"workspace_id": workspace_id, "files": files}
 
 

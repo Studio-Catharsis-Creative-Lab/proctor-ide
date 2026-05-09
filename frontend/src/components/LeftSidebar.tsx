@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./LeftSidebar.css";
 
-interface FileNode {
+export interface FileNode {
   id: string;
   name: string;
   type: "file" | "folder";
@@ -28,14 +28,32 @@ const defaultFiles: FileNode[] = [
   { id: "requirements", name: "requirements.txt", type: "file" },
 ];
 
-export function LeftSidebar({
-  files = defaultFiles,
-  onFileSelect,
-  selectedFileId,
-}: LeftSidebarProps) {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["src"])
-  );
+export function LeftSidebar({ files, onFileSelect, selectedFileId }: LeftSidebarProps) {
+  const list = files === undefined ? defaultFiles : files;
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set());
+
+  function collectFilePaths(nodes: FileNode[]): string[] {
+    const out: string[] = [];
+    for (const n of nodes) {
+      if (n.type === "file") out.push(n.id.replace(/\\/g, "/"));
+      else if (n.children?.length) out.push(...collectFilePaths(n.children));
+    }
+    return out;
+  }
+
+  // Expand all folders that contain workspace files (small trees, e.g. course notebooks).
+  useEffect(() => {
+    const paths = collectFilePaths(list);
+    if (paths.length === 0) return;
+    const folderIds = new Set<string>();
+    for (const p of paths) {
+      const parts = p.split("/").filter(Boolean);
+      for (let i = 0; i < parts.length - 1; i++) {
+        folderIds.add(`folder:${parts.slice(0, i + 1).join("/")}`);
+      }
+    }
+    setExpandedFolders((prev) => new Set([...prev, ...folderIds]));
+  }, [list]);
 
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -99,9 +117,15 @@ export function LeftSidebar({
         </div>
       </div>
       <div className="sidebar-content">
-        <ul className="file-tree">
-          {files.map((file) => renderFileItem(file))}
-        </ul>
+        {list.length === 0 ? (
+          <div className="sidebar-empty" style={{ padding: "12px", opacity: 0.75 }}>
+            No files in workspace yet.
+          </div>
+        ) : (
+          <ul className="file-tree">
+            {list.map((file) => renderFileItem(file))}
+          </ul>
+        )}
       </div>
     </div>
   );

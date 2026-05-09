@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   executeCode,
   fetchWorkspace,
@@ -9,7 +9,8 @@ import { useAuth } from "../auth/AuthProvider";
 import { useTracking } from "./useTracking";
 import { DockLayout } from "../../features/layout/DockLayout";
 import { MenuBar } from "../MenuBar";
-import { LeftSidebar } from "../LeftSidebar";
+import { LeftSidebar, type FileNode } from "../LeftSidebar";
+import { buildFileTree } from "./workspaceFileTree";
 import { NotebookEditor } from "../NotebookEditor";
 import { RightSidebar, type Comment } from "../RightSidebar";
 import { StatusBar } from "../StatusBar";
@@ -27,6 +28,7 @@ function inferEditorLanguage(path: string) {
   if (lower.endsWith(".html")) return "html";
   if (lower.endsWith(".css")) return "css";
   if (lower.endsWith(".json")) return "json";
+  if (lower.endsWith(".ipynb")) return "json";
   return "plaintext";
 }
 
@@ -42,7 +44,7 @@ function inferLanguageId(path: string) {
 
 export default function IDEPage() {
   const { token, user } = useAuth();
-  const [, setWorkspaceFiles] = useState<Record<string, string>>({});
+  const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({});
   const [content, setContent] = useState("Loading workspace...");
   const [, setTimeline] = useState<Array<{ id: string; summary: string; timestamp: string }>>([]);
   const [filePath, setFilePath] = useState("main.py");
@@ -61,6 +63,8 @@ export default function IDEPage() {
   const [assistantInput, setAssistantInput] = useState("");
   const [trackingLevel] = useState<"minimal" | "basic" | "moderate" | "comprehensive">("moderate");
 
+  const fileTree = useMemo(() => buildFileTree(Object.keys(workspaceFiles)), [workspaceFiles]);
+
   const { pushTrackingEvent } = useTracking({
     token,
     studentId: user?.uid ?? "unknown",
@@ -74,12 +78,17 @@ export default function IDEPage() {
     if (!token) {
       return;
     }
-    fetchWorkspace(WORKSPACE_ID, token).then((payload) => {
-      const firstPath = Object.keys(payload.files)[0] ?? "main.py";
-      setWorkspaceFiles(payload.files);
-      setFilePath(firstPath);
-      setContent(payload.files[firstPath] ?? "");
-    });
+    fetchWorkspace(WORKSPACE_ID, token)
+      .then((payload) => {
+        setWorkspaceFiles(payload.files);
+        const keys = Object.keys(payload.files);
+        const firstPath = keys.includes("main.py") ? "main.py" : keys.sort()[0] ?? "main.py";
+        setFilePath(firstPath);
+        setContent(payload.files[firstPath] ?? "");
+      })
+      .catch((err: Error) => {
+        setContent(`# Workspace load failed\n\n${err.message}`);
+      });
     fetchWorkspaceTimeline(WORKSPACE_ID, token).then((payload) => setTimeline(payload.timeline));
   }, [token]);
 
@@ -115,6 +124,16 @@ export default function IDEPage() {
 
   async function runNow() {
     if (!token) return;
+    if (filePath.toLowerCase().endsWith(".ipynb")) {
+      setTerminalState({
+        status: "Notebook",
+        stdout: "Run is for code files. Edit this .ipynb as JSON or switch to a .py file to execute on Judge0.",
+        stderr: "",
+        compileOutput: "",
+        message: "",
+      });
+      return;
+    }
     if (filePath.toLowerCase().endsWith(".html")) {
       setTerminalState({
         status: "Preview",
@@ -185,6 +204,13 @@ export default function IDEPage() {
     };
   }
 
+  function handleFileSelect(file: FileNode) {
+    if (file.type !== "file") return;
+    const path = file.id.replace(/\\/g, "/");
+    setFilePath(path);
+    setContent(workspaceFiles[path] ?? "");
+  }
+
   const commentList: Comment[] = assistantMessages.map((msg) => ({
     id: msg.timestamp,
     author: msg.user_id,
@@ -197,9 +223,10 @@ export default function IDEPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <MenuBar onSave={saveNow} onNew={() => {}} onOpen={() => {}} />
       <DockLayout
-        left={<LeftSidebar onFileSelect={() => {}} selectedFileId={filePath} />}
+        left={<LeftSidebar files={fileTree} onFileSelect={handleFileSelect} selectedFileId={filePath} />}
         center={
           <NotebookEditor
+            key={filePath}
             title="Proctor IDE"
             challengeDescription="Write Python code in the cell below and click Run to execute."
             initialCells={[
@@ -207,7 +234,7 @@ export default function IDEPage() {
                 id: "code-1",
                 type: "code",
                 content,
-                language: "python",
+                language: inferEditorLanguage(filePath),
                 status: isRunning ? "running" : terminalState.stderr ? "error" : "success",
                 output: terminalState.stdout || terminalState.stderr || "",
                 onUpdate: setContent,
