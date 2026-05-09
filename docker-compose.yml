@@ -7,8 +7,9 @@ services:
       POSTGRES_DB: proctoride
       POSTGRES_USER: proctoride
       POSTGRES_PASSWORD: proctoride
+    # Host 5433 avoids clashing with a local PostgreSQL install on 5432 (common on Windows).
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

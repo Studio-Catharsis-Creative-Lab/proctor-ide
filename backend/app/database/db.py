@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://proctoride:proctoride@localhost:5432/proctoride",
+    # Default port 5433 matches docker-compose.yml (Docker Postgres on host 5433).
+    "postgresql+asyncpg://proctoride:proctoride@127.0.0.1:5433/proctoride",
 )
 
 engine = create_async_engine(DATABASE_URL, echo=False)

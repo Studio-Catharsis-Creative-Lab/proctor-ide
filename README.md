@@ -4,8 +4,8 @@ ProctorIDE is an academic coding assessment platform with a role-based dashboard
 
 ## Local Development
 
-1. Start local services:
-   - `docker-compose up -d`
+1. Start local services (Postgres is exposed on **host port 5433** so it does not conflict with a local PostgreSQL on 5432):
+   - `docker compose up -d`
 2. Run backend:
    - `cd backend`
    - `python -m venv venv`
